@@ -1,11 +1,59 @@
-services: 
+services:
   db:
     image: postgres:16
-    environment:
-      POSTGRES_USER: Admin_vet
-      POSTGRES_PASSWORD: Holasoymayte2006
-      POSTGRES_DB: veterinaria
+    container_name: vet_postgres
+    env_file:
+      - .env
     ports:
       - "5432:5432"
-    volumes: 
-      
+    volumes:
+      - ./schema_corte3.sql:/docker-entrypoint-initdb.d/01_schema.sql
+      - ./backend/01_procedures.sql:/docker-entrypoint-initdb.d/02_procedures.sql
+      - ./backend/02_triggers.sql:/docker-entrypoint-initdb.d/03_triggers.sql
+      - ./backend/03_views.sql:/docker-entrypoint-initdb.d/04_views.sql
+      - ./backend/04_roles_y_permisos.sql:/docker-entrypoint-initdb.d/05_roles_y_permisos.sql
+      - ./backend/05_rls.sql:/docker-entrypoint-initdb.d/06_rls.sql
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    container_name: vet_redis
+    ports:
+      - "${REDIS_PORT}:6379"
+    volumes:
+      - redis_data:/data
+
+#  api:
+    #build: ./api
+    #container_name: vet_api
+    #ports:
+     # - "3000:3000"
+    #depends_on:
+     # - db
+      #- redis
+    #env_file:
+     # - .env
+    #environment:
+     # DB_HOST: db
+      #DB_PORT: 5432
+      #REDIS_HOST: redis
+    #volumes:
+     # - ./api:/app
+      #- /app/node_modules
+
+  #frontend:
+   # build: ./frontend
+    #container_name: vet_frontend
+    #ports:
+     # - "3001:3000"
+    #depends_on:
+     # - api
+    #env_file:
+     # - .env
+    #volumes:
+     # - ./frontend:/app
+     # - /app/node_modules
+
+volumes:
+  postgres_data:
+  redis_data:

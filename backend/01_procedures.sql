@@ -2,7 +2,7 @@ CREATE oR REPLACE PROCEDURE sp_agendar_cita(
     p_mascota_id INT,
     P_veterinario_id INT,
     p_fecha_hora TIMESTAMP,
-    P_motivo TEXT
+    p_motivo TEXT,
     OUT p_cita_id INT
 )
 
@@ -28,9 +28,9 @@ BEGIN
 
     SELECT COUNT(*) INTO V_conflicto
     FROM citas
-    WHERE veterinario_id = P_veterinario_id
+    WHERE veterinario_id = p_veterinario_id
     AND estado = 'AGENDADA'
-    AND ABS(EXTRACT(EPOCH FROM (fecha_hora - p_fecha_hora))) < 18000
+    AND ABS(EXTRACT(EPOCH FROM (fecha_hora - p_fecha_hora))) < 18000;
     
     IF v_conflicto > 0 THEN
         RAISE EXCEPTION 'El veterinario ya tiene una cita agendada en ese horario';
@@ -38,7 +38,7 @@ BEGIN
 
 
     INSERT INTO citas (mascota_id, veterinario_id, fecha_hora, motivo, estado)
-    VALUES (p_mascota_id, P_veterinario_id, p_fecha_hora, P_motivo, 'AGENDADA')
+    VALUES (p_mascota_id, p_veterinario_id, p_fecha_hora, p_motivo, 'AGENDADA')
     RETURNING id INTO p_cita_id;
 
 EXCEPTION 
