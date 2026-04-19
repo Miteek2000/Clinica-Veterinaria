@@ -1,11 +1,11 @@
 services:
   db:
     image: postgres:16
-    container_name: vet_postgres
+    container_name: ${DB_CONTAINER}
     env_file:
       - .env
     ports:
-      - "5432:5432"
+      - "${DB_PORT}:5432"
     volumes:
       - ./schema_corte3.sql:/docker-entrypoint-initdb.d/01_schema.sql
       - ./backend/01_procedures.sql:/docker-entrypoint-initdb.d/02_procedures.sql
@@ -17,7 +17,7 @@ services:
 
   redis:
     image: redis:7
-    container_name: vet_redis
+    container_name: ${REDIS_CONTAINER}
     ports:
       - "${REDIS_PORT}:6379"
     volumes:
@@ -25,9 +25,9 @@ services:
 
 #  api:
     #build: ./api
-    #container_name: vet_api
+    #container_name: ${API_CONTAINER}
     #ports:
-     # - "3000:3000"
+     # - "${API_PORT}:3000"
     #depends_on:
      # - db
       #- redis
@@ -35,7 +35,7 @@ services:
      # - .env
     #environment:
      # DB_HOST: db
-      #DB_PORT: 5432
+      #DB_PORT: ${DB_PORT}
       #REDIS_HOST: redis
     #volumes:
      # - ./api:/app
@@ -43,9 +43,9 @@ services:
 
   #frontend:
    # build: ./frontend
-    #container_name: vet_frontend
+    #container_name: ${FRONTEND_CONTAINER}
     #ports:
-     # - "3001:3000"
+     # - "${FRONTEND_PORT}:3000"
     #depends_on:
      # - api
     #env_file:
