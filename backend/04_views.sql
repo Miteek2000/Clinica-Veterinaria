@@ -8,15 +8,15 @@ SELECT
     v.nombre AS veterinario_asignado,
     c.fecha_hora AS proxima_cita,
     c.motivo AS motivo_cita,
-    COUNT(va.id) AS total_vacunas_aplicadas
+    COUNT(va.id) AS total_vacunas_aplicadas,
     MAX(va.fecha_aplicacion) AS ultima_vacuna
 FROM mascotas m
 JOIN duenos d ON d.id = m.dueno_id
-JOIN vet_atiende_mascota vam ON vam.mascota_id = m.id AND vam.activo = TRUE
-JOIN veterinarios v ON v.id = vam.veterinario_id
+JOIN vet_atiende_mascota vam ON vam.mascota_id = m.id AND vam.activa = TRUE
+JOIN veterinarios v ON v.id = vam.vet_id
 LEFT JOIN citas c ON c.mascota_id = m.id AND c.estado = 'AGENDADA' AND c.fecha_hora BETWEEN NOW() AND NOW() + INTERVAL '7 days'
 LEFT JOIN vacunas_aplicadas va ON va.mascota_id = m.id
-GROUP BY m.id, m.nombre, m.especie, d.nombre, d.telefono, v.nombre, c.fecha_hora, c.motivo;
+GROUP BY m.id, m.nombre, m.especie, d.nombre, d.telefono, v.nombre, c.fecha_hora, c.motivo
 ORDER BY c.fecha_hora ASC NULLS LAST;
 
 

@@ -8,11 +8,11 @@ services:
       - "${DB_PORT}:5432"
     volumes:
       - ./schema_corte3.sql:/docker-entrypoint-initdb.d/01_schema.sql
-      - ./backend/01_procedures.sql:/docker-entrypoint-initdb.d/02_procedures.sql
-      - ./backend/02_triggers.sql:/docker-entrypoint-initdb.d/03_triggers.sql
-      - ./backend/03_views.sql:/docker-entrypoint-initdb.d/04_views.sql
-      - ./backend/04_roles_y_permisos.sql:/docker-entrypoint-initdb.d/05_roles_y_permisos.sql
-      - ./backend/05_rls.sql:/docker-entrypoint-initdb.d/06_rls.sql
+      - ./backend/02_procedures.sql:/docker-entrypoint-initdb.d/02_procedures.sql
+      - ./backend/03_triggers.sql:/docker-entrypoint-initdb.d/03_triggers.sql
+      - ./backend/04_views.sql:/docker-entrypoint-initdb.d/04_views.sql
+      - ./backend/05_roles_y_permisos.sql:/docker-entrypoint-initdb.d/05_roles_y_permisos.sql
+      - ./backend/06_rls.sql:/docker-entrypoint-initdb.d/06_rls.sql
       - postgres_data:/var/lib/postgresql/data
 
   redis:
