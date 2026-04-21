@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Clínica Veterinaria</title>
+<script src="config.js"></script>
+<style>
+  body { font-family: sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+  nav button { margin-right: 8px; padding: 8px 16px; cursor: pointer; }
+  .screen { display: none; } .screen.active { display: block; }
+  input, select { padding: 8px; margin: 4px; border: 1px solid #ccc; border-radius: 4px; }
+  button.primary { background: #1D9E75; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; }
+  table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+  th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+  .badge { padding: 2px 8px; border-radius: 10px; font-size: 12px; }
+  .cache-hit { background: #EAF3DE; color: #27500A; }
+  .cache-miss { background: #FAEEDA; color: #633806; }
+</style>
+</head>
+<body>
+<h1>Clínica Veterinaria — Sistema Seguro</h1>
+
+<!-- PANTALLA 1: Login con selección de rol -->
+<div id="screen-login" class="screen active">
+  <h2>Iniciar sesión</h2>
+  <div>
+    <label>Rol:
+      <select id="rol-select">
+        <option value="veterinario">Veterinario (Dr. López)</option>
+        <option value="recepcion">Recepción</option>
+        <option value="admin">Administrador</option>
+      </select>
+    </label>
+    <br><br>
+    <button class="primary" onclick="login()">Entrar</button>
+  </div>
+</div>
+
+<!-- PANTALLA 2: Búsqueda de mascotas -->
+<div id="screen-mascotas" class="screen">
+  <nav>
+    <button onclick="show('mascotas')">Mascotas</button>
+    <button onclick="show('vacunacion')">Vacunación pendiente</button>
+    <button onclick="logout()">Cerrar sesión</button>
+    <span id="rol-badge" style="float:right;font-size:13px;color:#666"></span>
+  </nav>
+  <h2>Búsqueda de mascotas</h2>
+  <!-- Este input es la superficie principal para SQL injection -->
+  <input type="text" id="search-input" placeholder="Nombre de mascota..." style="width:300px">
+  <button class="primary" onclick="buscarMascotas()">Buscar</button>
+  <div id="mascotas-result"></div>
+</div>
+
+<!-- PANTALLA 3: Vacunación pendiente (con demo de Redis) -->
+<div id="screen-vacunacion" class="screen">
+  <nav>
+    <button onclick="show('mascotas')">Mascotas</button>
+    <button onclick="show('vacunacion')">Vacunación pendiente</button>
+    <button onclick="logout()">Cerrar sesión</button>
+  </nav>
+  <h2>Vacunación pendiente</h2>
+  <button class="primary" onclick="cargarVacunacion()">Consultar</button>
+  <div id="cache-badge" style="margin: 8px 0;"></div>
+  <div id="vacunacion-result"></div>
+</div>
+
+<script>
+// Configuración dinámica desde variables de entorno o valores por defecto
+const API = window.API_URL || (
+  window.location.hostname === 'localhost' 
+    ? 'http://localhost:3000/api' 
+    : `http://${window.location.hostname}:3000/api`
+);
+
+let sesion = { rol: null, vet_id: null };
+
+// Mapeo de roles a vet_id (dinámico desde el servidor)
+const vetIds = window.VET_IDS || { veterinario: 1, recepcion: null, admin: null };
+
+function login() {
+  const rol = document.getElementById('rol-select').value;
+  sesion.rol = rol;
+  sesion.vet_id = vetIds[rol];
+  document.getElementById('rol-badge').textContent = `Sesión: ${rol} (vet_id=${sesion.vet_id})`;
+  show('mascotas');
+}
+
+function logout() { sesion = {}; show('login'); }
+
+function show(screen) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + screen).classList.add('active');
+}
+
+async function buscarMascotas() {
+  const q = document.getElementById('search-input').value;
+  const params = new URLSearchParams({ q, rol: sesion.rol, vet_id: sesion.vet_id || '' });
+  const res = await fetch(`${API}/mascotas?${params}`);
+  const data = await res.json();
+
+  if (!res.ok) {
+    document.getElementById('mascotas-result').innerHTML = `<p style="color:red">Error: ${data.error}</p>`;
+    return;
+  }
+
+  const rows = data.map(m =>
+    `<tr><td>${m.id}</td><td>${m.nombre}</td><td>${m.especie}</td><td>${m.dueno}</td></tr>`
+  ).join('');
+  document.getElementById('mascotas-result').innerHTML =
+    `<table><tr><th>ID</th><th>Nombre</th><th>Especie</th><th>Dueño</th></tr>${rows}</table>`;
+}
+
+async function cargarVacunacion() {
+  const params = new URLSearchParams({ rol: sesion.rol, vet_id: sesion.vet_id || '' });
+  const res = await fetch(`${API}/vacunacion-pendiente?${params}`);
+  const data = await res.json();
+
+  const badge = data.source === 'cache'
+    ? `<span class="badge cache-hit">CACHE HIT — Redis</span>`
+    : `<span class="badge cache-miss">CACHE MISS — BD (${data.latency_ms}ms)</span>`;
+  document.getElementById('cache-badge').innerHTML = badge;
+
+  const rows = data.data.map(m =>
+    `<tr><td>${m.mascota}</td><td>${m.especie}</td><td>${m.vacuna || 'Sin vacunar'}</td><td>${m.proxima_aplicacion || '—'}</td></tr>`
+  ).join('');
+  document.getElementById('vacunacion-result').innerHTML =
+    `<table><tr><th>Mascota</th><th>Especie</th><th>Vacuna</th><th>Próxima</th></tr>${rows}</table>`;
+}
+</script>
+</body>
+</html>
