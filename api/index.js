@@ -8,12 +8,10 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// ============================================================
-// POOLS — uno por usuario de BD, creados UNA sola vez al arrancar
-// ============================================================
+
 const pools = {};
 
-// Recepción y admin
+
 for (const [rol, creds] of Object.entries(config.roles)) {
     if (rol === 'recepcion' || rol === 'admin') {
         pools[rol] = new Pool({
@@ -27,7 +25,7 @@ for (const [rol, creds] of Object.entries(config.roles)) {
     }
 }
 
-// Un pool por cada veterinario individual
+
 for (const [vetId, creds] of Object.entries(config.vetUsers)) {
     pools[`vet_${vetId}`] = new Pool({
         host: config.db.host,
@@ -39,9 +37,7 @@ for (const [vetId, creds] of Object.entries(config.vetUsers)) {
     console.log(`[POOL] "vet_${vetId}" → ${creds.user}`);
 }
 
-// ============================================================
-// HELPERS DE CONEXIÓN
-// ============================================================
+
 async function getConn(rol, vetId = null) {
     let pool;
     const vetKey = `vet_${vetId}`;
@@ -56,7 +52,7 @@ async function getConn(rol, vetId = null) {
 
     const client = await pool.connect();
 
-    // SET LOCAL requiere una transacción activa
+
     if (vetId && rol === 'veterinario') {
         await client.query('BEGIN');
         await client.query('SELECT set_config($1, $2, true)', ['app.vet_id', String(vetId)]);
@@ -76,20 +72,13 @@ async function releaseConn(client, hasTransaction, success) {
     }
 }
 
-// ============================================================
-// REDIS
-// ============================================================
+
 const redis = createClient({
     socket: { host: config.redis.host, port: config.redis.port }
 });
 redis.on('error', err => console.error('[REDIS] Error:', err.message));
 redis.connect().then(() => console.log('[REDIS] Conectado'));
 
-// ============================================================
-// GET /api/mascotas  — búsqueda con hardening SQL injection
-// La línea de defensa es: client.query(sql, [$1])
-// Archivo: api/index.js  — ver comentario inline abajo
-// ============================================================
 app.get('/api/mascotas', async (req, res) => {
     const { q, rol, vet_id } = req.query;
 
@@ -102,9 +91,7 @@ app.get('/api/mascotas', async (req, res) => {
     const client = await getConn(rol, vetIdNum);
     let ok = false;
     try {
-        // HARDENING: $1 es parámetro separado — el driver pg nunca lo interpola
-        // en el SQL string. Esto previene todos los ataques de SQL injection.
-        // Línea de defensa señalable en defensa oral: la siguiente línea.
+
         const result = await client.query(
             `SELECT m.id, m.nombre, m.especie, d.nombre AS dueno
              FROM mascotas m
@@ -122,9 +109,6 @@ app.get('/api/mascotas', async (req, res) => {
     }
 });
 
-// ============================================================
-// GET /api/vacunacion-pendiente — con caché Redis (filtrado por vet_id)
-// ============================================================
 app.get('/api/vacunacion-pendiente', async (req, res) => {
     const { rol, vet_id } = req.query;
 
@@ -134,7 +118,7 @@ app.get('/api/vacunacion-pendiente', async (req, res) => {
     }
 
     try {
-        // Generar clave de caché diferenciada por rol y vet_id
+
         let cacheKey = config.cache.keyVacunacion;
         if (rol === 'veterinario' && vetIdNum) {
             cacheKey = `${config.cache.keyVacunacion}:vet_${vetIdNum}`;
@@ -144,14 +128,14 @@ app.get('/api/vacunacion-pendiente', async (req, res) => {
             cacheKey = `${config.cache.keyVacunacion}:recepcion`;
         }
 
-        // Intentar cache HIT primero
+
         const cached = await redis.get(cacheKey);
         if (cached) {
             console.log(`[CACHE HIT] vacunacion_pendiente (${cacheKey}) — ${new Date().toISOString()}`);
             return res.json({ source: 'cache', data: JSON.parse(cached) });
         }
 
-        // Cache MISS — ir a BD
+
         console.log(`[CACHE MISS] vacunacion_pendiente (${cacheKey}) — consultando BD`);
         const start = Date.now();
         const hasTransaction = !!(vetIdNum && rol === 'veterinario');
@@ -176,9 +160,6 @@ app.get('/api/vacunacion-pendiente', async (req, res) => {
     }
 });
 
-// ============================================================
-// POST /api/vacunas — aplica vacuna e invalida caché
-// ============================================================
 app.post('/api/vacunas', async (req, res) => {
     const { mascota_id, vacuna_id, veterinario_id, rol, vet_id } = req.body;
 
@@ -200,9 +181,17 @@ app.post('/api/vacunas', async (req, res) => {
             [mascota_id, vacuna_id, veterinario_id]
         );
 
-        // Invalidar caché: los datos cambiaron
-        await redis.del(config.cache.keyVacunacion);
-        console.log(`[CACHE INVALIDADO] vacunacion_pendiente — nueva vacuna aplicada`);
+        const baseKey = config.cache.keyVacunacion;
+        const keys = [
+            baseKey,
+            `${baseKey}:vet_1`,
+            `${baseKey}:vet_2`,
+            `${baseKey}:vet_3`,
+            `${baseKey}:admin`,
+            `${baseKey}:recepcion`
+        ];
+        await redis.del(keys);
+        console.log(`[CACHE INVALIDADO] Todas las variantes de vacunacion_pendiente`);
 
         ok = true;
         res.json({ ok: true, id: result.rows[0].id });

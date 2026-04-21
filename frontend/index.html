@@ -39,7 +39,7 @@
   <nav>
     <button onclick="show('mascotas')">Mascotas</button>
     <button id="btn-vacunacion" onclick="show('vacunacion')" style="display:none">Vacunación pendiente</button>
-    <button onclick="show('historial')">Historial</button>
+    <button id="btn-historial" onclick="show('historial')">Historial</button>
     <button onclick="logout()">Cerrar sesión</button>
     <span id="rol-badge" style="float:right;font-size:13px;color:#666"></span>
   </nav>
@@ -66,7 +66,7 @@
   <nav>
     <button onclick="show('mascotas')">Mascotas</button>
     <button id="btn-vacunacion-2" onclick="show('vacunacion')" style="display:none">Vacunación pendiente</button>
-    <button onclick="show('historial')">Historial</button>
+    <button id="btn-historial-2" onclick="show('historial')" style="display:none">Historial</button>
     <button onclick="logout()">Cerrar sesión</button>
   </nav>
   <h2>Vacunación pendiente</h2>
@@ -80,7 +80,7 @@
   <nav>
     <button onclick="show('mascotas')">Mascotas</button>
     <button id="btn-vacunacion-3" onclick="show('vacunacion')" style="display:none">Vacunación pendiente</button>
-    <button onclick="show('historial')">Historial</button>
+    <button id="btn-historial-3" onclick="show('historial')" style="display:none">Historial</button>
     <button onclick="logout()">Cerrar sesión</button>
   </nav>
   <h2>Historial de auditoría</h2>
@@ -133,9 +133,13 @@ function login() {
   document.getElementById('rol-badge').textContent = `${usuario.label} | vet_id=${vetIdText}`;
   
   const puedeVerVacunas = sesion.rol !== 'recepcion';
+  const puedeVerHistorial = sesion.rol !== 'recepcion';
   document.getElementById('btn-vacunacion').style.display = puedeVerVacunas ? 'inline-block' : 'none';
   document.getElementById('btn-vacunacion-2').style.display = puedeVerVacunas ? 'inline-block' : 'none';
   document.getElementById('btn-vacunacion-3').style.display = puedeVerVacunas ? 'inline-block' : 'none';
+  document.getElementById('btn-historial').style.display = puedeVerHistorial ? 'inline-block' : 'none';
+  document.getElementById('btn-historial-2').style.display = puedeVerHistorial ? 'inline-block' : 'none';
+  document.getElementById('btn-historial-3').style.display = puedeVerHistorial ? 'inline-block' : 'none';
   
   const vetInput = document.getElementById('cita-vet-id');
   const vetLabel = document.getElementById('cita-vet-label');
