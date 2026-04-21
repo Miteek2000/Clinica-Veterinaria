@@ -90,12 +90,13 @@
 
 <script>
 const API = window.API_URL || 'http://localhost:3000/api';
+const FRONTEND_URL = window.location.protocol + '//' + window.location.host;
 
 console.log('');
 console.log('╔═══════════════════════════════════════════════╗');
 console.log('║   Frontend Clínica Veterinaria — Sistema Seguro ║');
 console.log('╠═══════════════════════════════════════════════╣');
-console.log('║  Frontend:  http://localhost:3001              ║');
+console.log('║  Frontend:  ' + FRONTEND_URL.padEnd(36) + '║');
 console.log('║  API:       ' + API.padEnd(36) + '║');
 console.log('╚═══════════════════════════════════════════════╝');
 console.log('');

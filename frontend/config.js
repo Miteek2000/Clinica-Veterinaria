@@ -1,8 +1,9 @@
 window.API_URL = (function() {
   const h = window.location.hostname;
+  const apiPort = window.API_PORT || '3000';
   return (h === 'localhost' || h === '127.0.0.1')
-    ? 'http://localhost:3000/api'
-    : `http://${h}:3000/api`;
+    ? `http://localhost:${apiPort}/api`
+    : `http://${h}:${apiPort}/api`;
 })();
 
 

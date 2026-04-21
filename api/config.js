@@ -45,9 +45,18 @@ const config = {
 
 
   vetUsers: {
-    1: { user: 'dr_lopez',   password: 'lopez123'  },
-    2: { user: 'dra_garcia', password: 'garcia123' },
-    3: { user: 'dr_mendez',  password: 'mendez123' },
+    1: {
+      user: process.env.DB_USER_VET_1 || 'dr_lopez',
+      password: process.env.DB_PASS_VET_1 || 'lopez123',
+    },
+    2: {
+      user: process.env.DB_USER_VET_2 || 'dra_garcia',
+      password: process.env.DB_PASS_VET_2 || 'garcia123',
+    },
+    3: {
+      user: process.env.DB_USER_VET_3 || 'dr_mendez',
+      password: process.env.DB_PASS_VET_3 || 'mendez123',
+    },
   },
 };
 
