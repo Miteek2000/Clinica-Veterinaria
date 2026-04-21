@@ -18,7 +18,7 @@
 </style>
 </head>
 <body>
-<h1>Clínica Veterinaria — Sistema Seguro</h1>
+<h1>Clínica Veterinaria</h1>
 
 <!-- PANTALLA 1: Login con selección de rol -->
 <div id="screen-login" class="screen active">
@@ -73,15 +73,6 @@
   <button class="primary" onclick="cargarVacunacion()">Consultar</button>
   <div id="cache-badge" style="margin: 8px 0;"></div>
   <div id="vacunacion-result"></div>
-
-  <div style="margin-top:1rem; padding:1rem; border:1px solid #ddd; border-radius:8px;">
-    <h3>Aplicar vacuna</h3>
-    <input type="number" id="vac-mascota-id" placeholder="ID mascota" style="width:120px">
-    <input type="number" id="vac-vacuna-id"  placeholder="ID vacuna"  style="width:120px">
-    <input type="number" id="vac-vet-id"     placeholder="ID veterinario" style="width:140px">
-    <button class="primary" onclick="aplicarVacuna()">Aplicar</button>
-    <div id="vac-result"></div>
-  </div>
 </div>
 
 <!-- PANTALLA 4: Historial de auditoría -->
@@ -98,10 +89,8 @@
 </div>
 
 <script>
-// Usar configuración dinámica desde config.js
 const API = window.API_URL || 'http://localhost:3000/api';
 
-// Banner visual en la consola
 console.log('');
 console.log('╔═══════════════════════════════════════════════╗');
 console.log('║   Frontend Clínica Veterinaria — Sistema Seguro ║');
@@ -113,7 +102,6 @@ console.log('');
 
 let sesion = { rol: null, vet_id: null };
 
-// Poblar el dropdown dinámicamente desde USUARIOS
 document.addEventListener('DOMContentLoaded', () => {
   const sel = document.getElementById('rol-select');
   if (!sel) return;
@@ -143,22 +131,22 @@ function login() {
   const vetIdText = sesion.vet_id !== null ? sesion.vet_id : 'N/A';
   document.getElementById('rol-badge').textContent = `${usuario.label} | vet_id=${vetIdText}`;
   
-  // Ocultar botón de vacunación para recepción (no tiene permisos en BD)
   const puedeVerVacunas = sesion.rol !== 'recepcion';
   document.getElementById('btn-vacunacion').style.display = puedeVerVacunas ? 'inline-block' : 'none';
   document.getElementById('btn-vacunacion-2').style.display = puedeVerVacunas ? 'inline-block' : 'none';
   document.getElementById('btn-vacunacion-3').style.display = puedeVerVacunas ? 'inline-block' : 'none';
   
-  // Pre-llenar vet_id para veterinarios
   const vetInput = document.getElementById('cita-vet-id');
   const vetLabel = document.getElementById('cita-vet-label');
   if (sesion.rol === 'veterinario') {
     vetInput.value = sesion.vet_id;
     vetInput.readOnly = true;
+    vetInput.style.display = 'none';
     vetLabel.style.display = 'inline';
-    vetLabel.textContent = `(Veterinario: ${usuario.label})`;
+    vetLabel.textContent = usuario.label;
   } else {
     vetInput.readOnly = false;
+    vetInput.style.display = 'inline-block';
     vetLabel.style.display = 'none';
   }
   
@@ -264,7 +252,7 @@ function agendarCita() {
   const fecha = document.getElementById('cita-fecha').value;
   const motivo = document.getElementById('cita-motivo').value;
 
-  // Validaciones en frontend
+
   if (!mascotaId || mascotaId < 1) {
     document.getElementById('cita-result').innerHTML = '<p style="color:red">Error: ID mascota debe ser > 0</p>';
     return;
@@ -280,7 +268,7 @@ function agendarCita() {
     return;
   }
 
-  // Validacion: veterinarios solo pueden agendar citas para ellos mismos
+
   if (sesion.rol === 'veterinario' && vetId !== sesion.vet_id) {
     document.getElementById('cita-result').innerHTML = '<p style="color:red">No puedes agendar citas para otro veterinario. Solo vet_id=' + sesion.vet_id + '</p>';
     return;
@@ -336,7 +324,7 @@ async function aplicarVacuna() {
     document.getElementById('vac-result').innerHTML = data.ok
       ? `<p style="color:green">✓ Vacuna aplicada — caché invalidado</p>`
       : `<p style="color:red">❌ ${data.error}</p>`;
-    // Recargar vacunación pendiente para mostrar cambios
+
     setTimeout(() => cargarVacunacion(), 500);
   } catch (err) {
     console.error('[ERROR]', err);

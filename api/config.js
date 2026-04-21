@@ -1,8 +1,3 @@
-/**
- * Configuración centralizada del API
- * Todas las variables se leen desde .env
- */
-
 require('dotenv').config();
 
 const config = {
@@ -29,13 +24,10 @@ const config = {
 
   // Caché
   cache: {
-    ttl: parseInt(process.env.CACHE_TTL || '300'), // segundos
+    ttl: parseInt(process.env.CACHE_TTL || '300'), 
     keyVacunacion: process.env.CACHE_KEY_VACUNACION || 'vacunacion:pendiente',
   },
 
-  // Mapeo de roles a credenciales de BD
-  // En producción real, usarías JWT + sesiones
-  // Estos usuarios deben existir en la BD con sus roles asignados
   roles: {
     veterinario: {
       user: process.env.DB_USER_VETERINARIO || 'dr_lopez',
@@ -51,8 +43,7 @@ const config = {
     },
   },
 
-  // Mapeo de vet_id a credenciales individuales de veterinarios
-  // Permite conectar como cada veterinario específico (no solo dr_lopez para todos)
+
   vetUsers: {
     1: { user: 'dr_lopez',   password: 'lopez123'  },
     2: { user: 'dra_garcia', password: 'garcia123' },
@@ -60,7 +51,7 @@ const config = {
   },
 };
 
-// Validación de variables críticas
+
 const requiredVars = [
   'POSTGRES_DB',
   'POSTGRES_USER',

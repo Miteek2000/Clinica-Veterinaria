@@ -6,7 +6,7 @@ ALTER TABLE mascotas          FORCE ROW LEVEL SECURITY;
 ALTER TABLE citas             FORCE ROW LEVEL SECURITY;
 ALTER TABLE vacunas_aplicadas FORCE ROW LEVEL SECURITY;
 
--- MASCOTAS
+
 CREATE POLICY pol_mascotas_vet
 ON mascotas FOR SELECT TO rol_veterinario
 USING (
@@ -28,7 +28,7 @@ CREATE POLICY pol_mascotas_admin
 ON mascotas FOR ALL TO rol_admin
 USING (true) WITH CHECK (true);
 
--- CITAS
+
 CREATE POLICY pol_citas_vet
 ON citas FOR SELECT TO rol_veterinario
 USING (
@@ -53,7 +53,7 @@ CREATE POLICY pol_citas_admin
 ON citas FOR ALL TO rol_admin
 USING (true) WITH CHECK (true);
 
--- VACUNAS APLICADAS
+
 CREATE POLICY pol_vacunas_vet
 ON vacunas_aplicadas FOR SELECT TO rol_veterinario
 USING (

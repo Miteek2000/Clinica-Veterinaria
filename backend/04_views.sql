@@ -77,9 +77,7 @@ WHERE
 ORDER BY proxima_aplicacion ASC NULLS FIRST;
 
 
--- Hacer que las vistas respeten el RLS del usuario que consulta
--- Sin esto, las vistas se ejecutan con permisos del creador (postgres)
--- y saltan las políticas RLS sobre mascotas, citas y vacunas_aplicadas
+
 ALTER VIEW v_resumen_mascotas_atencion       SET (security_invoker = on);
 ALTER VIEW v_historial_mascotas              SET (security_invoker = on);
 ALTER VIEW v_mascotas_vacunacion_pendiente   SET (security_invoker = on);

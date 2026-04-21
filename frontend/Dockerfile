@@ -2,7 +2,7 @@ FROM nginx:alpine
 COPY index.html /usr/share/nginx/html/
 COPY config.js /usr/share/nginx/html/
 
-# Script de inicialización que muestra el banner y luego inicia nginx
+
 RUN echo '#!/bin/sh' > /docker-entrypoint.sh && \
     echo 'echo ""' >> /docker-entrypoint.sh && \
     echo 'echo "╔══════════════════════════════════════════╗"' >> /docker-entrypoint.sh && \
