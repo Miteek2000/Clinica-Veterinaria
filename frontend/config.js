@@ -1,18 +1,33 @@
 /**
  * Configuración dinámica del frontend
- * Carga variables desde variables de entorno o usa valores por defecto
+ * Se adapta automáticamente al servidor donde se sirve
  */
 
-// URL base del API
-window.API_URL = process.env.REACT_APP_API_URL || 
-                 process.env.VUE_APP_API_URL ||
-                 (window.location.hostname === 'localhost' 
-                   ? 'http://localhost:3000/api' 
-                   : `http://${window.location.hostname}:3000/api`);
+// Detectar URL del API dinámicamente basado en el servidor actual
+function getApiUrl() {
+  const hostname = window.location.hostname;
+  const port = window.location.port;
+  
+  // Si estamos en localhost, usa puerto 3000 del API
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'http://localhost:3000/api';
+  }
+  
+  // Si estamos en producción/docker, usa el mismo host en puerto 3000
+  if (port) {
+    return `http://${hostname}:3000/api`;
+  }
+  
+  // Fallback: mismo host (asume que API está en la misma URL)
+  return `http://${hostname}:3000/api`;
+}
+
+// URL base del API — dinámica según servidor
+window.API_URL = getApiUrl();
 
 // Mapeo de roles a vet_id
-// En producción real, esto vendría del backend después del login
-window.VET_IDS = process.env.REACT_APP_VET_IDS || {
+// En producción, esto podría venir del servidor vía fetch
+window.VET_IDS = {
   veterinario: 1,
   recepcion: null,
   admin: null
@@ -20,9 +35,9 @@ window.VET_IDS = process.env.REACT_APP_VET_IDS || {
 
 // Otros valores configurables
 window.APP_CONFIG = {
-  cache_ttl_seconds: process.env.REACT_APP_CACHE_TTL || 300,
-  environment: process.env.NODE_ENV || 'development'
+  cache_ttl_seconds: 300,
+  environment: 'production'
 };
 
 console.log(`[CONFIG] API URL: ${window.API_URL}`);
-console.log(`[CONFIG] Environment: ${window.APP_CONFIG.environment}`);
+console.log(`[CONFIG] Current hostname: ${window.location.hostname}`);

@@ -65,16 +65,12 @@
 </div>
 
 <script>
-// Configuración dinámica desde variables de entorno o valores por defecto
-const API = window.API_URL || (
-  window.location.hostname === 'localhost' 
-    ? 'http://localhost:3000/api' 
-    : `http://${window.location.hostname}:3000/api`
-);
+// Usar configuración dinámica
+const API = window.API_URL || 'http://localhost:3000/api';
 
 let sesion = { rol: null, vet_id: null };
 
-// Mapeo de roles a vet_id (dinámico desde el servidor)
+// Mapeo de roles a vet_id
 const vetIds = window.VET_IDS || { veterinario: 1, recepcion: null, admin: null };
 
 function login() {
@@ -82,7 +78,11 @@ function login() {
   sesion.rol = rol;
   sesion.vet_id = vetIds[rol];
   document.getElementById('rol-badge').textContent = `Sesión: ${rol} (vet_id=${sesion.vet_id})`;
+  console.log('[LOGIN] Sesión iniciada:', sesion);
+  console.log('[CONFIG] API URL:', API);
   show('mascotas');
+  // Cargar mascotas automáticamente al iniciar sesión
+  buscarMascotas();
 }
 
 function logout() { sesion = {}; show('login'); }
@@ -93,38 +93,85 @@ function show(screen) {
 }
 
 async function buscarMascotas() {
-  const q = document.getElementById('search-input').value;
+  const q = document.getElementById('search-input')?.value || '';
   const params = new URLSearchParams({ q, rol: sesion.rol, vet_id: sesion.vet_id || '' });
-  const res = await fetch(`${API}/mascotas?${params}`);
-  const data = await res.json();
+  const url = `${API}/mascotas?${params}`;
+  
+  console.log('[FETCH] URL:', url);
+  console.log('[SESION]', sesion);
+  
+  try {
+    document.getElementById('mascotas-result').innerHTML = '<p>⏳ Cargando...</p>';
+    
+    const res = await fetch(url);
+    console.log('[RESPONSE] Status:', res.status);
+    
+    const data = await res.json();
+    console.log('[DATA]', data);
 
-  if (!res.ok) {
-    document.getElementById('mascotas-result').innerHTML = `<p style="color:red">Error: ${data.error}</p>`;
-    return;
+    if (!res.ok) {
+      document.getElementById('mascotas-result').innerHTML = `<p style="color:red">❌ Error ${res.status}: ${data.error || 'Error desconocido'}</p>`;
+      return;
+    }
+
+    if (!Array.isArray(data)) {
+      document.getElementById('mascotas-result').innerHTML = `<p style="color:red">❌ Respuesta inválida (tipo: ${typeof data})</p>`;
+      return;
+    }
+
+    if (data.length === 0) {
+      document.getElementById('mascotas-result').innerHTML = `<p style="color:orange">⚠️ Sin resultados para "${q || 'todas las mascotas'}"</p>`;
+      return;
+    }
+
+    const rows = data.map(m =>
+      `<tr><td>${m.id}</td><td>${m.nombre}</td><td>${m.especie}</td><td>${m.dueno}</td></tr>`
+    ).join('');
+    document.getElementById('mascotas-result').innerHTML =
+      `<p style="color:green">✓ ${data.length} mascota(s) encontrada(s)</p><table><tr><th>ID</th><th>Nombre</th><th>Especie</th><th>Dueño</th></tr>${rows}</table>`;
+  } catch (err) {
+    console.error('[ERROR]', err);
+    document.getElementById('mascotas-result').innerHTML = `<p style="color:red">❌ Error de conexión: ${err.message}</p>`;
   }
-
-  const rows = data.map(m =>
-    `<tr><td>${m.id}</td><td>${m.nombre}</td><td>${m.especie}</td><td>${m.dueno}</td></tr>`
-  ).join('');
-  document.getElementById('mascotas-result').innerHTML =
-    `<table><tr><th>ID</th><th>Nombre</th><th>Especie</th><th>Dueño</th></tr>${rows}</table>`;
 }
 
 async function cargarVacunacion() {
   const params = new URLSearchParams({ rol: sesion.rol, vet_id: sesion.vet_id || '' });
-  const res = await fetch(`${API}/vacunacion-pendiente?${params}`);
-  const data = await res.json();
+  const url = `${API}/vacunacion-pendiente?${params}`;
+  
+  console.log('[FETCH] Vacunacion:', url);
+  
+  try {
+    document.getElementById('vacunacion-result').innerHTML = '<p>⏳ Cargando...</p>';
+    
+    const res = await fetch(url);
+    const data = await res.json();
+    console.log('[DATA]', data);
 
-  const badge = data.source === 'cache'
-    ? `<span class="badge cache-hit">CACHE HIT — Redis</span>`
-    : `<span class="badge cache-miss">CACHE MISS — BD (${data.latency_ms}ms)</span>`;
-  document.getElementById('cache-badge').innerHTML = badge;
+    if (!res.ok) {
+      document.getElementById('vacunacion-result').innerHTML = `<p style="color:red">❌ Error: ${data.error}</p>`;
+      return;
+    }
 
-  const rows = data.data.map(m =>
-    `<tr><td>${m.mascota}</td><td>${m.especie}</td><td>${m.vacuna || 'Sin vacunar'}</td><td>${m.proxima_aplicacion || '—'}</td></tr>`
-  ).join('');
-  document.getElementById('vacunacion-result').innerHTML =
-    `<table><tr><th>Mascota</th><th>Especie</th><th>Vacuna</th><th>Próxima</th></tr>${rows}</table>`;
+    const badge = data.source === 'cache'
+      ? `<span class="badge cache-hit">✓ CACHE HIT — Redis</span>`
+      : `<span class="badge cache-miss">⚠ CACHE MISS — BD (${data.latency_ms}ms)</span>`;
+    document.getElementById('cache-badge').innerHTML = badge;
+
+    if (!Array.isArray(data.data) || data.data.length === 0) {
+      document.getElementById('vacunacion-result').innerHTML = `<p style="color:orange">Sin mascotas para vacunar</p>`;
+      return;
+    }
+
+    const rows = data.data.map(m =>
+      `<tr><td>${m.mascota}</td><td>${m.especie}</td><td>${m.vacuna || 'Sin vacunar'}</td><td>${m.proxima_aplicacion || '—'}</td></tr>`
+    ).join('');
+    document.getElementById('vacunacion-result').innerHTML =
+      `<table><tr><th>Mascota</th><th>Especie</th><th>Vacuna</th><th>Próxima</th></tr>${rows}</table>`;
+  } catch (err) {
+    console.error('[ERROR]', err);
+    document.getElementById('vacunacion-result').innerHTML = `<p style="color:red">❌ Error: ${err.message}</p>`;
+  }
 }
 </script>
 </body>
