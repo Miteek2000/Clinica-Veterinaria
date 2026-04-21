@@ -31,6 +31,7 @@ GRANT SELECT         ON veterinarios          TO rol_veterinario;
 GRANT SELECT         ON historial_movimientos TO rol_veterinario;
 GRANT SELECT         ON v_resumen_mascotas_atencion TO rol_veterinario;
 GRANT SELECT         ON v_historial_mascotas  TO rol_veterinario;
+GRANT SELECT         ON v_mascotas_vacunacion_pendiente TO rol_veterinario;
 
 
 GRANT USAGE, SELECT ON SEQUENCE citas_id_seq                 TO rol_veterinario;
@@ -44,6 +45,7 @@ GRANT SELECT         ON duenos               TO rol_recepcion;
 GRANT SELECT         ON veterinarios         TO rol_recepcion;
 GRANT SELECT, INSERT ON citas                TO rol_recepcion;
 GRANT SELECT         ON v_resumen_mascotas_atencion TO rol_recepcion;
+GRANT SELECT         ON v_mascotas_vacunacion_pendiente TO rol_recepcion;
 
 
 GRANT USAGE, SELECT ON SEQUENCE citas_id_seq TO rol_recepcion;

@@ -45,7 +45,7 @@ services:
     restart: unless-stopped
 
   frontend:
-    image: nginx:alpine
+    build: ./frontend
     container_name: ${FRONTEND_CONTAINER}
     ports:
       - "${FRONTEND_PORT}:80"

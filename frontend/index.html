@@ -66,6 +66,16 @@
 // Usar configuración dinámica desde config.js
 const API = window.API_URL || 'http://localhost:3000/api';
 
+// Banner visual en la consola
+console.log('');
+console.log('╔═══════════════════════════════════════════════╗');
+console.log('║   Frontend Clínica Veterinaria — Sistema Seguro ║');
+console.log('╠═══════════════════════════════════════════════╣');
+console.log('║  Frontend:  http://localhost:3001              ║');
+console.log('║  API:       ' + API.padEnd(36) + '║');
+console.log('╚═══════════════════════════════════════════════╝');
+console.log('');
+
 let sesion = { rol: null, vet_id: null };
 
 // Poblar el dropdown dinámicamente desde USUARIOS
