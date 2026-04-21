@@ -50,6 +50,14 @@ const config = {
       password: process.env.DB_PASS_ADMIN || 'admin123',
     },
   },
+
+  // Mapeo de vet_id a credenciales individuales de veterinarios
+  // Permite conectar como cada veterinario específico (no solo dr_lopez para todos)
+  vetUsers: {
+    1: { user: 'dr_lopez',   password: 'lopez123'  },
+    2: { user: 'dra_garcia', password: 'garcia123' },
+    3: { user: 'dr_mendez',  password: 'mendez123' },
+  },
 };
 
 // Validación de variables críticas

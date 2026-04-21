@@ -24,11 +24,9 @@
 <div id="screen-login" class="screen active">
   <h2>Iniciar sesión</h2>
   <div>
-    <label>Rol:
+    <label>Usuario:
       <select id="rol-select">
-        <option value="veterinario">Veterinario (Dr. López)</option>
-        <option value="recepcion">Recepción</option>
-        <option value="admin">Administrador</option>
+        <!-- Las opciones se poblarán dinámicamente desde config.js -->
       </select>
     </label>
     <br><br>
@@ -65,23 +63,44 @@
 </div>
 
 <script>
-// Usar configuración dinámica
+// Usar configuración dinámica desde config.js
 const API = window.API_URL || 'http://localhost:3000/api';
 
 let sesion = { rol: null, vet_id: null };
 
-// Mapeo de roles a vet_id
-const vetIds = window.VET_IDS || { veterinario: 1, recepcion: null, admin: null };
+// Poblar el dropdown dinámicamente desde USUARIOS
+document.addEventListener('DOMContentLoaded', () => {
+  const sel = document.getElementById('rol-select');
+  if (!sel) return;
+  
+  sel.innerHTML = '';
+  window.USUARIOS.forEach((u, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = u.label;
+    sel.appendChild(opt);
+  });
+  console.log('[INIT] Dropdown poblado con', window.USUARIOS.length, 'usuarios');
+});
 
 function login() {
-  const rol = document.getElementById('rol-select').value;
-  sesion.rol = rol;
-  sesion.vet_id = vetIds[rol];
-  document.getElementById('rol-badge').textContent = `Sesión: ${rol} (vet_id=${sesion.vet_id})`;
+  const idx = parseInt(document.getElementById('rol-select').value);
+  const usuario = window.USUARIOS[idx];
+  
+  if (!usuario) {
+    console.error('[LOGIN] Usuario no encontrado en índice:', idx);
+    return;
+  }
+  
+  sesion.rol = usuario.rol;
+  sesion.vet_id = usuario.vet_id;
+  
+  const vetIdText = sesion.vet_id !== null ? sesion.vet_id : 'N/A';
+  document.getElementById('rol-badge').textContent = `${usuario.label} | vet_id=${vetIdText}`;
+  
   console.log('[LOGIN] Sesión iniciada:', sesion);
   console.log('[CONFIG] API URL:', API);
   show('mascotas');
-  // Cargar mascotas automáticamente al iniciar sesión
   buscarMascotas();
 }
 

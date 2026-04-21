@@ -8,35 +8,86 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// POOLS FIJOS — uno por rol, se crean una sola vez al arrancar
+// POOLS FIJOS — se crean una sola vez al arrancar
 const pools = {};
+
+// Pools para roles fijos (recepción y admin)
 for (const [rol, creds] of Object.entries(config.roles)) {
-    pools[rol] = new Pool({
-        host: config.db.host,
-        port: config.db.port,
-        database: config.db.database,
-        user: creds.user,
-        password: creds.password,
-    });
+    if (rol === 'recepcion' || rol === 'admin') {
+        pools[rol] = new Pool({
+            host: config.db.host,
+            port: config.db.port,
+            database: config.db.database,
+            user: creds.user,
+            password: creds.password,
+        });
+    }
+}
+
+// POOLS FIJOS — se crean una sola vez al arrancar
+const pools = {};
+
+console.log('[INIT] Creando pools...');
+console.log('[CONFIG] config.roles:', Object.keys(config.roles));
+console.log('[CONFIG] config.vetUsers:', Object.keys(config.vetUsers || {}));
+
+// Pools para roles fijos (recepción y admin)
+for (const [rol, creds] of Object.entries(config.roles)) {
+    if (rol === 'recepcion' || rol === 'admin') {
+        pools[rol] = new Pool({
+            host: config.db.host,
+            port: config.db.port,
+            database: config.db.database,
+            user: creds.user,
+            password: creds.password,
+        });
+        console.log(`[POOL] Creado pool "${rol}" para usuario ${creds.user}`);
+    }
+}
+
+// Pools para cada veterinario individual
+if (config.vetUsers) {
+    for (const [vetId, creds] of Object.entries(config.vetUsers)) {
+        pools[`vet_${vetId}`] = new Pool({
+            host: config.db.host,
+            port: config.db.port,
+            database: config.db.database,
+            user: creds.user,
+            password: creds.password,
+        });
+        console.log(`[POOL] Creado pool "vet_${vetId}" para usuario ${creds.user}`);
+    }
+} else {
+    console.warn('[POOL] config.vetUsers no definido!');
 }
 
 async function getConn(rol, vetId = null) {
-    const pool = pools[rol] || pools.recepcion;
+    let pool;
+    if (rol === 'veterinario' && vetId && config.vetUsers && config.vetUsers[String(vetId)]) {
+        // Conectar como el veterinario específico
+        pool = pools[`vet_${vetId}`];
+        console.log(`[POOL] Conectando con vet_${vetId}`);
+    } else {
+        pool = pools[rol] || pools.recepcion;
+        console.log(`[POOL] Conectando con rol "${rol}"`);
+    }
+
     const client = await pool.connect();
 
-    if (vetId) {
-        // BEGIN + SET LOCAL: el setting solo vive dentro de esta transacción
+    if (vetId && rol === 'veterinario') {
         await client.query('BEGIN');
         await client.query('SET LOCAL app.vet_id = $1', [String(vetId)]);
+        console.log(`[QUERY] SET LOCAL app.vet_id=${vetId}`);
     }
     return client;
 }
 
 // Helper para liberar correctamente
+// Nota: solo veterinario hace BEGIN, así que solo esos necesitan COMMIT/ROLLBACK
 async function releaseConn(client, vetId, commit = true) {
     try {
         if (vetId) {
-            // Si hubo transacción, necesitamos cerrarla
+            // Si hubo transacción (veterinario), cerrarla
             await client.query(commit ? 'COMMIT' : 'ROLLBACK');
         }
     } finally {
