@@ -3,7 +3,7 @@ SELECT
     m.id AS mascota_id,
     m.nombre AS mascota,
     m.especie,
-    m.nombre AS dueno,
+    d.nombre AS dueno,
     d.telefono AS telefono_dueno,
     v.nombre AS veterinario_asignado,
     c.fecha_hora AS proxima_cita,
@@ -75,3 +75,11 @@ WHERE
     va.fecha_aplicacion IS NULL
     OR va.fecha_aplicacion < NOW() - INTERVAL '11 months'
 ORDER BY proxima_aplicacion ASC NULLS FIRST;
+
+
+-- Hacer que las vistas respeten el RLS del usuario que consulta
+-- Sin esto, las vistas se ejecutan con permisos del creador (postgres)
+-- y saltan las políticas RLS sobre mascotas, citas y vacunas_aplicadas
+ALTER VIEW v_resumen_mascotas_atencion       SET (security_invoker = on);
+ALTER VIEW v_historial_mascotas              SET (security_invoker = on);
+ALTER VIEW v_mascotas_vacunacion_pendiente   SET (security_invoker = on);

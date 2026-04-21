@@ -59,7 +59,7 @@ async function getConn(rol, vetId = null) {
     // SET LOCAL requiere una transacción activa
     if (vetId && rol === 'veterinario') {
         await client.query('BEGIN');
-        await client.query(`SET LOCAL app.vet_id = ${parseInt(vetId)}`);
+        await client.query('SELECT set_config($1, $2, true)', ['app.vet_id', String(vetId)]);
         console.log(`[CONN] SET LOCAL app.vet_id = ${vetId}`);
     }
 
@@ -123,7 +123,7 @@ app.get('/api/mascotas', async (req, res) => {
 });
 
 // ============================================================
-// GET /api/vacunacion-pendiente — con caché Redis
+// GET /api/vacunacion-pendiente — con caché Redis (filtrado por vet_id)
 // ============================================================
 app.get('/api/vacunacion-pendiente', async (req, res) => {
     const { rol, vet_id } = req.query;
@@ -134,15 +134,25 @@ app.get('/api/vacunacion-pendiente', async (req, res) => {
     }
 
     try {
+        // Generar clave de caché diferenciada por rol y vet_id
+        let cacheKey = config.cache.keyVacunacion;
+        if (rol === 'veterinario' && vetIdNum) {
+            cacheKey = `${config.cache.keyVacunacion}:vet_${vetIdNum}`;
+        } else if (rol === 'admin') {
+            cacheKey = `${config.cache.keyVacunacion}:admin`;
+        } else if (rol === 'recepcion') {
+            cacheKey = `${config.cache.keyVacunacion}:recepcion`;
+        }
+
         // Intentar cache HIT primero
-        const cached = await redis.get(config.cache.keyVacunacion);
+        const cached = await redis.get(cacheKey);
         if (cached) {
-            console.log(`[CACHE HIT] vacunacion_pendiente — ${new Date().toISOString()}`);
+            console.log(`[CACHE HIT] vacunacion_pendiente (${cacheKey}) — ${new Date().toISOString()}`);
             return res.json({ source: 'cache', data: JSON.parse(cached) });
         }
 
         // Cache MISS — ir a BD
-        console.log(`[CACHE MISS] vacunacion_pendiente — consultando BD`);
+        console.log(`[CACHE MISS] vacunacion_pendiente (${cacheKey}) — consultando BD`);
         const start = Date.now();
         const hasTransaction = !!(vetIdNum && rol === 'veterinario');
         const client = await getConn(rol, vetIdNum);
@@ -152,9 +162,9 @@ app.get('/api/vacunacion-pendiente', async (req, res) => {
                 'SELECT * FROM v_mascotas_vacunacion_pendiente'
             );
             const latency = Date.now() - start;
-            console.log(`[BD] Consulta en ${latency}ms — ${result.rows.length} filas`);
+            console.log(`[BD] Consulta en ${latency}ms — ${result.rows.length} filas (clave: ${cacheKey})`);
 
-            await redis.setEx(config.cache.keyVacunacion, config.cache.ttl, JSON.stringify(result.rows));
+            await redis.setEx(cacheKey, config.cache.ttl, JSON.stringify(result.rows));
             ok = true;
             res.json({ source: 'database', latency_ms: latency, data: result.rows });
         } finally {
@@ -210,9 +220,24 @@ app.post('/api/vacunas', async (req, res) => {
 app.post('/api/citas', async (req, res) => {
     const { mascota_id, veterinario_id, fecha_hora, motivo, rol, vet_id } = req.body;
 
+    // Validaciones
+    const mascotaIdNum = mascota_id ? parseInt(mascota_id) : null;
+    if (!mascotaIdNum || isNaN(mascotaIdNum) || mascotaIdNum < 1) {
+        return res.status(400).json({ error: 'mascota_id inválido (debe ser > 0)' });
+    }
+
     const vetIdNum = vet_id ? parseInt(vet_id) : null;
     if (vet_id && (isNaN(vetIdNum) || vetIdNum < 1)) {
         return res.status(400).json({ error: 'vet_id inválido' });
+    }
+
+    const vetIdCita = veterinario_id ? parseInt(veterinario_id) : null;
+    if (!vetIdCita || isNaN(vetIdCita) || vetIdCita < 1) {
+        return res.status(400).json({ error: 'veterinario_id inválido (debe ser > 0)' });
+    }
+
+    if (!fecha_hora || fecha_hora.trim() === '') {
+        return res.status(400).json({ error: 'fecha_hora es requerida' });
     }
 
     const hasTransaction = !!(vetIdNum && rol === 'veterinario');
@@ -221,7 +246,7 @@ app.post('/api/citas', async (req, res) => {
     try {
         await client.query(
             'CALL sp_agendar_cita($1, $2, $3, $4, NULL)',
-            [mascota_id, veterinario_id, fecha_hora, motivo]
+            [mascotaIdNum, vetIdCita, fecha_hora, motivo]
         );
         ok = true;
         res.json({ ok: true });
@@ -238,6 +263,36 @@ app.post('/api/citas', async (req, res) => {
 // ============================================================
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// ============================================================
+// GET /api/historial — registro de auditoría
+// ============================================================
+app.get('/api/historial', async (req, res) => {
+    const { rol, vet_id } = req.query;
+
+    const vetIdNum = vet_id ? parseInt(vet_id) : null;
+    if (vet_id && (isNaN(vetIdNum) || vetIdNum < 1)) {
+        return res.status(400).json({ error: 'vet_id inválido' });
+    }
+
+    const hasTransaction = !!(vetIdNum && rol === 'veterinario');
+    const client = await getConn(rol, vetIdNum);
+    let ok = false;
+    try {
+        const result = await client.query(
+            `SELECT id, tipo, referencia_id, descripcion, fecha 
+             FROM historial_movimientos 
+             ORDER BY fecha DESC LIMIT 100`
+        );
+        ok = true;
+        res.json(result.rows);
+    } catch (err) {
+        console.error('[ERROR] GET /api/historial:', err.message);
+        res.status(500).json({ error: err.message });
+    } finally {
+        await releaseConn(client, hasTransaction, ok);
+    }
 });
 
 // ============================================================

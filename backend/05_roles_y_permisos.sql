@@ -9,6 +9,10 @@ DROP USER IF EXISTS recepcion1;
 DROP USER IF EXISTS admin_vet;
 
 
+REVOKE ALL ON ALL TABLES    IN SCHEMA public FROM PUBLIC;
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM PUBLIC;
+
+
 CREATE ROLE rol_veterinario;
 CREATE ROLE rol_recepcion;
 CREATE ROLE rol_admin;
@@ -45,7 +49,6 @@ GRANT SELECT         ON duenos               TO rol_recepcion;
 GRANT SELECT         ON veterinarios         TO rol_recepcion;
 GRANT SELECT, INSERT ON citas                TO rol_recepcion;
 GRANT SELECT         ON v_resumen_mascotas_atencion TO rol_recepcion;
-GRANT SELECT         ON v_mascotas_vacunacion_pendiente TO rol_recepcion;
 
 
 GRANT USAGE, SELECT ON SEQUENCE citas_id_seq TO rol_recepcion;

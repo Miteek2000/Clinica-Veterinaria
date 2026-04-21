@@ -1,6 +1,6 @@
-CREATE oR REPLACE PROCEDURE sp_agendar_cita(
+CREATE OR REPLACE PROCEDURE sp_agendar_cita(
     p_mascota_id INT,
-    P_veterinario_id INT,
+    p_veterinario_id INT,
     p_fecha_hora TIMESTAMP,
     p_motivo TEXT,
     OUT p_cita_id INT

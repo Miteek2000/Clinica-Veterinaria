@@ -38,7 +38,8 @@
 <div id="screen-mascotas" class="screen">
   <nav>
     <button onclick="show('mascotas')">Mascotas</button>
-    <button onclick="show('vacunacion')">Vacunación pendiente</button>
+    <button id="btn-vacunacion" onclick="show('vacunacion')" style="display:none">Vacunación pendiente</button>
+    <button onclick="show('historial')">Historial</button>
     <button onclick="logout()">Cerrar sesión</button>
     <span id="rol-badge" style="float:right;font-size:13px;color:#666"></span>
   </nav>
@@ -47,19 +48,53 @@
   <input type="text" id="search-input" placeholder="Nombre de mascota..." style="width:300px">
   <button class="primary" onclick="buscarMascotas()">Buscar</button>
   <div id="mascotas-result"></div>
+
+  <div style="margin-top:1rem; padding:1rem; border:1px solid #ddd; border-radius:8px;">
+    <h3>Agendar cita</h3>
+    <input type="number"          id="cita-mascota-id"   placeholder="ID mascota" style="width:120px">
+    <input type="number"          id="cita-vet-id"        placeholder="ID veterinario" style="width:140px">
+    <span id="cita-vet-label" style="display:none; font-weight:bold; color:#1D9E75; margin-left:8px;"></span>
+    <input type="datetime-local"  id="cita-fecha">
+    <input type="text"            id="cita-motivo"        placeholder="Motivo" style="width:200px">
+    <button class="primary" onclick="agendarCita()">Agendar</button>
+    <div id="cita-result"></div>
+  </div>
 </div>
 
 <!-- PANTALLA 3: Vacunación pendiente (con demo de Redis) -->
 <div id="screen-vacunacion" class="screen">
   <nav>
     <button onclick="show('mascotas')">Mascotas</button>
-    <button onclick="show('vacunacion')">Vacunación pendiente</button>
+    <button id="btn-vacunacion-2" onclick="show('vacunacion')" style="display:none">Vacunación pendiente</button>
+    <button onclick="show('historial')">Historial</button>
     <button onclick="logout()">Cerrar sesión</button>
   </nav>
   <h2>Vacunación pendiente</h2>
   <button class="primary" onclick="cargarVacunacion()">Consultar</button>
   <div id="cache-badge" style="margin: 8px 0;"></div>
   <div id="vacunacion-result"></div>
+
+  <div style="margin-top:1rem; padding:1rem; border:1px solid #ddd; border-radius:8px;">
+    <h3>Aplicar vacuna</h3>
+    <input type="number" id="vac-mascota-id" placeholder="ID mascota" style="width:120px">
+    <input type="number" id="vac-vacuna-id"  placeholder="ID vacuna"  style="width:120px">
+    <input type="number" id="vac-vet-id"     placeholder="ID veterinario" style="width:140px">
+    <button class="primary" onclick="aplicarVacuna()">Aplicar</button>
+    <div id="vac-result"></div>
+  </div>
+</div>
+
+<!-- PANTALLA 4: Historial de auditoría -->
+<div id="screen-historial" class="screen">
+  <nav>
+    <button onclick="show('mascotas')">Mascotas</button>
+    <button id="btn-vacunacion-3" onclick="show('vacunacion')" style="display:none">Vacunación pendiente</button>
+    <button onclick="show('historial')">Historial</button>
+    <button onclick="logout()">Cerrar sesión</button>
+  </nav>
+  <h2>Historial de auditoría</h2>
+  <button class="primary" onclick="cargarHistorial()">Actualizar</button>
+  <div id="historial-result"></div>
 </div>
 
 <script>
@@ -108,8 +143,28 @@ function login() {
   const vetIdText = sesion.vet_id !== null ? sesion.vet_id : 'N/A';
   document.getElementById('rol-badge').textContent = `${usuario.label} | vet_id=${vetIdText}`;
   
+  // Ocultar botón de vacunación para recepción (no tiene permisos en BD)
+  const puedeVerVacunas = sesion.rol !== 'recepcion';
+  document.getElementById('btn-vacunacion').style.display = puedeVerVacunas ? 'inline-block' : 'none';
+  document.getElementById('btn-vacunacion-2').style.display = puedeVerVacunas ? 'inline-block' : 'none';
+  document.getElementById('btn-vacunacion-3').style.display = puedeVerVacunas ? 'inline-block' : 'none';
+  
+  // Pre-llenar vet_id para veterinarios
+  const vetInput = document.getElementById('cita-vet-id');
+  const vetLabel = document.getElementById('cita-vet-label');
+  if (sesion.rol === 'veterinario') {
+    vetInput.value = sesion.vet_id;
+    vetInput.readOnly = true;
+    vetLabel.style.display = 'inline';
+    vetLabel.textContent = `(Veterinario: ${usuario.label})`;
+  } else {
+    vetInput.readOnly = false;
+    vetLabel.style.display = 'none';
+  }
+  
   console.log('[LOGIN] Sesión iniciada:', sesion);
   console.log('[CONFIG] API URL:', API);
+  console.log('[PERMS] Puede ver vacunas:', puedeVerVacunas);
   show('mascotas');
   buscarMascotas();
 }
@@ -200,6 +255,131 @@ async function cargarVacunacion() {
   } catch (err) {
     console.error('[ERROR]', err);
     document.getElementById('vacunacion-result').innerHTML = `<p style="color:red">❌ Error: ${err.message}</p>`;
+  }
+}
+
+function agendarCita() {
+  const mascotaId = parseInt(document.getElementById('cita-mascota-id').value);
+  const vetId = parseInt(document.getElementById('cita-vet-id').value);
+  const fecha = document.getElementById('cita-fecha').value;
+  const motivo = document.getElementById('cita-motivo').value;
+
+  // Validaciones en frontend
+  if (!mascotaId || mascotaId < 1) {
+    document.getElementById('cita-result').innerHTML = '<p style="color:red">Error: ID mascota debe ser > 0</p>';
+    return;
+  }
+
+  if (!vetId || vetId < 1) {
+    document.getElementById('cita-result').innerHTML = '<p style="color:red">Error: ID veterinario debe ser > 0</p>';
+    return;
+  }
+
+  if (!fecha) {
+    document.getElementById('cita-result').innerHTML = '<p style="color:red">Error: Debe seleccionar fecha y hora</p>';
+    return;
+  }
+
+  // Validacion: veterinarios solo pueden agendar citas para ellos mismos
+  if (sesion.rol === 'veterinario' && vetId !== sesion.vet_id) {
+    document.getElementById('cita-result').innerHTML = '<p style="color:red">No puedes agendar citas para otro veterinario. Solo vet_id=' + sesion.vet_id + '</p>';
+    return;
+  }
+
+  const body = {
+    mascota_id: mascotaId,
+    veterinario_id: vetId,
+    fecha_hora: fecha,
+    motivo: motivo,
+    rol: sesion.rol,
+    vet_id: sesion.vet_id
+  };
+
+  enviarCita(body);
+}
+
+async function enviarCita(body) {
+  try {
+    const res = await fetch(`${API}/citas`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    console.log('[CITA]', data);
+    document.getElementById('cita-result').innerHTML = data.ok
+      ? `<p style="color:green">✓ Cita agendada correctamente</p>`
+      : `<p style="color:red">❌ ${data.error}</p>`;
+  } catch (err) {
+    console.error('[ERROR]', err);
+    document.getElementById('cita-result').innerHTML = `<p style="color:red">❌ ${err.message}</p>`;
+  }
+}
+
+async function aplicarVacuna() {
+  const body = {
+    mascota_id:    parseInt(document.getElementById('vac-mascota-id').value),
+    vacuna_id:     parseInt(document.getElementById('vac-vacuna-id').value),
+    veterinario_id: parseInt(document.getElementById('vac-vet-id').value),
+    rol:    sesion.rol,
+    vet_id: sesion.vet_id
+  };
+
+  try {
+    const res = await fetch(`${API}/vacunas`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    console.log('[VACUNA]', data);
+    document.getElementById('vac-result').innerHTML = data.ok
+      ? `<p style="color:green">✓ Vacuna aplicada — caché invalidado</p>`
+      : `<p style="color:red">❌ ${data.error}</p>`;
+    // Recargar vacunación pendiente para mostrar cambios
+    setTimeout(() => cargarVacunacion(), 500);
+  } catch (err) {
+    console.error('[ERROR]', err);
+    document.getElementById('vac-result').innerHTML = `<p style="color:red">❌ ${err.message}</p>`;
+  }
+}
+
+async function cargarHistorial() {
+  const params = new URLSearchParams({ rol: sesion.rol, vet_id: sesion.vet_id || '' });
+  const url = `${API}/historial?${params}`;
+  
+  console.log('[FETCH] Historial:', url);
+  
+  try {
+    document.getElementById('historial-result').innerHTML = '<p>Cargando...</p>';
+    
+    const res = await fetch(url);
+    const data = await res.json();
+    console.log('[DATA]', data);
+
+    if (!res.ok) {
+      document.getElementById('historial-result').innerHTML = '<p style="color:red">Error: ' + (data.error || 'Desconocido') + '</p>';
+      return;
+    }
+
+    if (!Array.isArray(data) || data.length === 0) {
+      document.getElementById('historial-result').innerHTML = '<p>Sin eventos en el historial</p>';
+      return;
+    }
+
+    let html = '<p style="color:green">' + data.length + ' evento(s) encontrado(s)</p>';
+    html += '<table border="1" style="width:100%; margin-top:1rem;">';
+    html += '<tr><th>ID</th><th>Tipo</th><th>Ref</th><th>Descripcion</th><th>Fecha</th></tr>';
+    for (let i = 0; i < data.length; i++) {
+      const h = data[i];
+      const fecha = new Date(h.fecha).toLocaleString('es');
+      html += '<tr><td>' + h.id + '</td><td>' + h.tipo + '</td><td>' + h.referencia_id + '</td><td>' + h.descripcion.substring(0, 50) + '...</td><td>' + fecha + '</td></tr>';
+    }
+    html += '</table>';
+    document.getElementById('historial-result').innerHTML = html;
+  } catch (err) {
+    console.error('[ERROR]', err);
+    document.getElementById('historial-result').innerHTML = '<p style="color:red">Error: ' + err.message + '</p>';
   }
 }
 </script>
