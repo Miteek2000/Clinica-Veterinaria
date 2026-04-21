@@ -9,7 +9,7 @@ CREATE oR REPLACE PROCEDURE sp_agendar_cita(
 LANGUAGE plpgsql AS $$
 DECLARE 
     v_activo BOOLEAN;
-    V_conflicto INT; 
+    v_conflicto INT; 
 BEGIN
     
     SELECT activo INTO v_activo 
@@ -26,7 +26,7 @@ BEGIN
 
 
 
-    SELECT COUNT(*) INTO V_conflicto
+    SELECT COUNT(*) INTO v_conflicto
     FROM citas
     WHERE veterinario_id = p_veterinario_id
     AND estado = 'AGENDADA'
@@ -44,5 +44,31 @@ BEGIN
 EXCEPTION 
     WHEN OTHERS THEN
         RAISE;
+END;
+$$;
+
+
+CREATE OR REPLACE FUNCTION fn_total_facturado(
+    p_mascota_id INT,
+    p_anio INT
+) RETURNS NUMERIC
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_total NUMERIC := 0;
+BEGIN
+    SELECT COALESCE(SUM(costo), 0) INTO v_total
+    FROM citas
+    WHERE mascota_id = p_mascota_id
+      AND EXTRACT(YEAR FROM fecha_hora) = p_anio
+      AND estado = 'COMPLETADA';
+
+    v_total := v_total + COALESCE(
+        (SELECT SUM(costo_cobrado)
+         FROM vacunas_aplicadas
+         WHERE mascota_id = p_mascota_id
+           AND EXTRACT(YEAR FROM fecha_aplicacion) = p_anio),
+        0
+    );
+    RETURN v_total;
 END;
 $$;

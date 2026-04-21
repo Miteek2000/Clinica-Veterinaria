@@ -56,3 +56,22 @@ JOIN inventario_vacunas iv ON iv.id = va.vacuna_id
 JOIN veterinarios ve ON ve.id = va.veterinario_id
 
 ORDER BY mascota_id, fecha DESC;
+
+
+CREATE OR REPLACE VIEW v_mascotas_vacunacion_pendiente AS
+SELECT
+    m.id AS mascota_id,
+    m.nombre AS mascota,
+    m.especie,
+    d.nombre AS dueno,
+    iv.nombre AS vacuna,
+    va.fecha_aplicacion AS ultima_aplicacion,
+    va.fecha_aplicacion + INTERVAL '1 year' AS proxima_aplicacion
+FROM mascotas m
+JOIN duenos d ON d.id = m.dueno_id
+LEFT JOIN vacunas_aplicadas va ON va.mascota_id = m.id
+LEFT JOIN inventario_vacunas iv ON iv.id = va.vacuna_id
+WHERE
+    va.fecha_aplicacion IS NULL
+    OR va.fecha_aplicacion < NOW() - INTERVAL '11 months'
+ORDER BY proxima_aplicacion ASC NULLS FIRST;
