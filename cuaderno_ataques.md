@@ -15,7 +15,7 @@ extra, sin errores de BD, sin ejecución de código malicioso.
 
 ---
 ### Ataque 1 — Quote-escape clásico
-![Ataque 1](./imagenes/image.png)
+![alt text](./Imagenes/image.png)
 **Input exacto probado:**
 ```
 ' OR '1'='1
